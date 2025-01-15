@@ -1,0 +1,13 @@
+# Package Information for pkg-config
+
+prefix=/home/iot25/machenfeng/kank/sq_work/sqlite-src-3470200/build
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: SQLite
+Description: SQL database engine
+Version: 3.47.2
+Libs: -L${libdir} -lsqlite3
+Libs.private: -lm -ldl -lz -lpthread 
+Cflags: -I${includedir}

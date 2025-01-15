@@ -1,0 +1,1 @@
+/home/iot25/machenfeng/kank/sq_work/tcl9.0.1/library/manifest.txt
