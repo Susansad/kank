@@ -27,7 +27,7 @@
 #define ARRAY_SIZE(X) (sizeof(x)/sizeof(x[0]))
 
 int socketfd;
-#define msg_buf	"DS18B20 get temperature:"
+#define msg_buf	"DS18B20 Get Temperature:"
 void *temperature_thread(void *arg);
 void *report_thread(void *arg);
 
@@ -50,17 +50,13 @@ int main(int argc,char **argv)
 	char				*client_ip=NULL;
 	int					client_port=0;
 	int					time_interval=0;
-//	int                 time_interval2=0;
 	int					opt;
 	float				temp;
-	int					flag=0;
-//	char				msg_buf[128]="DS18B20 get temperature:";
+	int					flag=0,connect=0;
 	time_t				rawtime;
 	struct	tm			*timeinfo;
 	char				buf[80];
 	char				final_msg[80];
-//	pthread_t			temp_thread;
-//	pthread_t			rep_thread;
 
 	struct option	long_options[]=
 	{
@@ -109,134 +105,62 @@ int main(int argc,char **argv)
 		}
 
 //check socked connect
-		socketfd=socket_client_init(client_ip,client_port);
-		if(socketfd<0)
+//		socketfd=socket_client_init(client_ip,client_port);
+		if(!connect)
 		{
-			flag=1;
-			if((insert_data(temp))<0)
+			//没链接上服务器，数据暂存在数据库		
+			socketfd=socket_client_init(client_ip,client_port);
+			if(socketfd<0)
 			{
-				printf("[%f] insert  to sqlite error\n",temp);
+				connect=0;
+				flag=1;
+				if((insert_data(temp))<0)
+				{
+					printf("[%f] insert  to sqlite error\n",temp);
+					continue;
+				}	
+	
+				printf("socket disconnet,data sorted into db\n");
+				sleep(time_interval);
 				continue;
 			}
-	
-			printf("socket disconnet,data sorted into db\n");
-			continue;
+			else
+				connect=1;
 		}
 		else
-		{
-			if(flag)
 			{
-				send_data();
-				flag=0;
-				clear_db();
-			}
+				connect=1;
+				if(flag)
+				{
+				//连接上服务器，直接发送
+					send_data();
+					flag=0;
+					clear_db();
+				}	
 
-			//check msg
-			memset(final_msg, 0, sizeof(final_msg));
-			strncpy(final_msg,msg_buf, sizeof(final_msg) - 1);
-			memset(&buf,0,sizeof(buf));
-			sprintf(buf,"%f",temp);
-//			printf("buf :%s\n",buf);
-			strncat(final_msg,buf,sizeof(final_msg)-strlen(final_msg));
-//			printf("msg:%s\n",final_msg);
-			time(&rawtime);
-			timeinfo=localtime(&rawtime);
-			memset(&buf,0,sizeof(buf));
-			strftime(buf,sizeof(buf),"%Y-%m-%d %H:%M:%S",timeinfo);
-//			printf("buf:%s\n",buf);
-			strncat(final_msg," ",sizeof(final_msg)-strlen(final_msg));
-			strncat(final_msg,buf,sizeof(final_msg)-strlen(final_msg));
-			strncat(final_msg,"\n",sizeof(final_msg)-strlen(final_msg));
-//			printf("msg:%s\n",final_msg);
-			if(write(socketfd,final_msg,strlen(final_msg))<0)           
-			{                                                      
-				printf("write data to server[%s:%d] failure:%s\n",client_ip,client_port,strerror(errno));
-				close(socketfd);                                    
-				return -2;                                         
-			}
+			//发送信息的格式整理与检查
+				memset(final_msg, 0, sizeof(final_msg));
+				strncpy(final_msg,msg_buf, sizeof(final_msg) - 1);
+				memset(&buf,0,sizeof(buf));
+				sprintf(buf,"%f",temp);
+				strncat(final_msg,buf,sizeof(final_msg)-strlen(final_msg));
+				time(&rawtime);
+				timeinfo=localtime(&rawtime);
+				memset(&buf,0,sizeof(buf));
+				strftime(buf,sizeof(buf),"%Y-%m-%d %H:%M:%S",timeinfo);
+				strncat(final_msg," ",sizeof(final_msg)-strlen(final_msg));
+				strncat(final_msg,buf,sizeof(final_msg)-strlen(final_msg));
+				strncat(final_msg,"\n",sizeof(final_msg)-strlen(final_msg));
+
+
+				if(write(socketfd,final_msg,strlen(final_msg))<0)           
+				{                                                      
+					printf("write data to server[%s:%d] failure:%s\n",client_ip,client_port,strerror(errno));
+					close(socketfd);                                    
+					return -2;                                         
+				}
+				sleep(time_interval);
 
 		}
-		sleep(time_interval);
 	}
 }
-//	init_db();
-
-	/*creat thread work
-	if(pthread_create(&temp_thread,NULL,temperature_thread,(void *)(intptr_t)time_interval1)!=0)
-	{
-		printf("fail to creat temperature thread\n");
-		close(socketfd);
-		exit(EXIT_FAILURE);
-	}
- 
-	if(pthread_create(&rep_thread,NULL,report_thread,(void *)(intptr_t)time_interval2)!=0)
-	{
-		printf("fail to creat report thread\n");
-		close(socketfd);
-		exit(EXIT_FAILURE);
-	}
-
-
-	pthread_join(temp_thread,NULL);
-	pthread_join(rep_thread,NULL);
-	if(clear_db()<0)
-	{
-		printf("close error\n");
-		return -3;
-	}
-	close(socketfd);
-
-
-}
-
-void* temperature_thread(void* arg)
-{
-	int 	interval1=(int)arg;
-	//free(arg);
-	char	sn[16];
-	float	temp=1;
-	while(1)
-	{
-		
-		if((temperature_get(&temp))<0)
-		{
-			printf("device [%s] get temperature failure\n",sn);
-			continue;
-		}
-
-		if((insert_data(temp))<0)
-		{
-			printf("[%s:%f] insert  to sqlite error\n",sn,temp);
-			continue;
-		}
-		sleep(interval1);
-	}
-	return NULL;
-}
-
-void *report_thread(void *arg)
-{
-	int		interval2=(int)arg;
-//	printf("interval is %d",interval2);
-	//free(arg);
-	sleep(5);
-	while(1)
-	{
-		if(send_data()<0)
-		{
-			printf("send data error\n");
-			continue;
-		}	
-		sleep(interval2);
-	  	if(clear_db()<0)
-		{
-			printf("clear db error\n");
-			continue;
-		}
-	
-	}
-
-
-	return NULL;
-}
-*/

@@ -16,11 +16,13 @@
 #define MAX_EVENTS 512
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
+int socketfd;
+
 static inline void print_usage(char * progname);
 
 int main(int argc,char **argv)
 {
-	int					listenfd,connfd;
+	int					listenfd;
 	int					serv_port=0;
 	int					daemon_run=0;
 	char				*progname=NULL;
@@ -29,7 +31,7 @@ int main(int argc,char **argv)
 	int					i;
 //	int					found;
 	char				buf[1024];
-
+	float				temperature;
 	int					epollfd;
 	struct epoll_event	event;
 	struct epoll_event	event_array[MAX_EVENTS];
@@ -99,6 +101,8 @@ int main(int argc,char **argv)
 		return -4;
 	}
 
+	init_db();
+
 
 	for(;;)
 	{
@@ -128,22 +132,22 @@ int main(int argc,char **argv)
 			/* listen socket get event means new client start */
 			if(event_array[i].data.fd==listenfd)
 			{
-				if((connfd=accept(listenfd,(struct sockaddr *)NULL,NULL))<0)
+				if((socketfd=accept(listenfd,(struct sockaddr *)NULL,NULL))<0)
 				{
 					printf("accept new client failure:%s\n",strerror(errno));
 					continue;
 				}
 
-				event.data.fd=connfd;
+				event.data.fd=socketfd;
 				event.events=EPOLLIN;
-				if(epoll_ctl(epollfd,EPOLL_CTL_ADD,connfd,&event)<0)
+				if(epoll_ctl(epollfd,EPOLL_CTL_ADD,socketfd,&event)<0)
 				{
 					printf("epoll add client socket failure:%s\n",strerror(errno));
 					close(event_array[i].data.fd);
 					continue;
 				}
 
-				printf("epoll add new client socket[%d] ok.\n",connfd);
+				printf("epoll add new client socket[%d] ok.\n",socketfd);
 
 			}
 			else/* already conneted client socket get data incoming */
@@ -160,7 +164,8 @@ int main(int argc,char **argv)
 				{
 
 					printf("socket[%d] read get %d bytes data:%s\n",event_array[i].data.fd,rv,buf);
-					
+					temperature=extract_value(buf,"Temperature");
+					insert_data(temperature);
 				}
 			}
 		}
@@ -180,4 +185,22 @@ static inline void print_usage(char *progname)
 	printf(" -h[help ] Display this help information\n");	  
 	printf("\nExample: %s -b -p 8900\n", progname);
 	return ;
+}
+
+float extract_value(const char *data, const char *key)
+{
+	char *pos=strstr(data,key);
+	if(pos!=NULL)
+	{
+		pos += strlen(key);
+		while(*pos && (*pos == ':' || *pos == ' ' || *pos == '\t'))
+		{
+			pos++;
+		}
+		if(*pos)
+		{
+			return atof(pos);
+		}
+	}
+	return 0.0;
 }

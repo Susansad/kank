@@ -109,7 +109,7 @@ int	socket_client_init(char *ip,int port)
 		printf("inet faild:%s",strerror(errno));
 		rv=-2;
 		return -3;
-		goto Cleanup;
+
 	}
 	if((connect(connf_fd,(struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
 	{

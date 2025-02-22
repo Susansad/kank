@@ -28,5 +28,9 @@
 #include <sys/epoll.h>
 #include <sys/resource.h>
 
+
 int socket_server_init(char *listen_ip, int listen_port);
 void set_socket_rlimit(void);
+int init_db();
+int insert_data(float temperature);
+float extract_value(const char *data, const char *key);

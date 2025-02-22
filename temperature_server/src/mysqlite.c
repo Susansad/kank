@@ -11,7 +11,6 @@
  *                 
  ********************************************************************************/
 #define _GNU_SOURCE
-#include "temperature_client.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -104,7 +103,7 @@ int send_data()
 			china_time=utc_time+8*3600;
 			china_tm=localtime(&china_time);
 			strftime(china_timestamp,sizeof(china_timestamp),"%Y-%m-%d %H:%M:%S",china_tm);
-			snprintf(buffer, sizeof(buffer), "ID: %d,Temperature: %f,Timestamp: %s\n", id, value, china_timestamp);
+			snprintf(buffer, sizeof(buffer), "ID: %d,Value: %f,Timestamp: %s\n", id, value, china_timestamp);
 
 			
 
